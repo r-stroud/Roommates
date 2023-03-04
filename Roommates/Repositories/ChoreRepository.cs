@@ -103,19 +103,20 @@ namespace Roommates.Repositories
                 using(SqlCommand cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = @"
-                    SELECT C.Name FROM Chore C
+                    SELECT C.Id, C.Name FROM Chore C
                     LEFT JOIN RoommateChore RC
                     ON RC.ChoreId = C.Id
                     WHERE RC.Id IS NULL";
 
                     SqlDataReader reader = cmd.ExecuteReader();
 
-                    List<Chore> chores = new List<Chore>();
+                    List<Chore> chores = null;
 
                     while (reader.Read())
                     {
                         Chore chore = new Chore()
                         {
+                            Id = reader.GetInt32(reader.GetOrdinal("Id")),
                             Name = reader.GetString(reader.GetOrdinal("Name"))
                         };
 
@@ -125,6 +126,58 @@ namespace Roommates.Repositories
                     reader.Close();
 
                     return chores;
+
+                }
+            }
+        }
+
+        public void AssignChore(int roommateId, int choreId)
+        {
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO RoommateChore (RoommateId, ChoreId)
+                    VALUES (@RoommateId, @ChoreId)";
+
+                    cmd.Parameters.AddWithValue("@RoommateId", roommateId);
+                    cmd.Parameters.AddWithValue("@ChoreId", choreId);
+
+                    cmd.ExecuteNonQuery();
+
+                }
+            }
+        }
+
+        public void GetChoreCounts()
+        {
+            using(SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using(SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT R.FirstName, COUNT(RC.ChoreId) AS ChoreCount 
+                    FROM RoommateChore RC
+                    RIGHT JOIN Roommate R
+                    ON R.Id = RC.RoommateId
+                    GROUP BY R.FirstName
+                    ORDER BY COUNT(RC.ChoreId) DESC";
+
+                    SqlDataReader reader = cmd.ExecuteReader();
+
+                    string output = "";
+
+                    while (reader.Read())
+                    {
+                        int numberOfChores = reader.GetInt32(reader.GetOrdinal("ChoreCount"));
+                        string roommate = reader.GetString(reader.GetOrdinal("FirstName"));
+                        output = $"{roommate}: {Convert.ToString(numberOfChores)}";
+                        Console.WriteLine(output);
+                    }
+
+
+                    reader.Close();
 
                 }
             }
